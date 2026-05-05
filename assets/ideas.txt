@@ -1,0 +1,58 @@
+chaque cry ajoute une goutte
+10 larmes = 1 verre
+5 verres = 1 bouteille
+5 bouteilles = 1 bidon/tonneau
+10 bidons = 1 baignoire
+
+Change l'icone a chaque palier et ajoute un compte 
+par exemple 3 bouteilles et 2 verres et 1 goutte
+Mettre les 3 icones ?
+
+
+Premier cercle larme deuxieme bouteille
+
+https://app.visily.ai/projects/fcd43185-3165-4ff2-a4e8-5b2d4a4dc537/boards/1534986
+
+npx expo start -c
+
+TODO :
+✅ ajouter la possibilité de supprimer une note
+✅ sauvegarder les notes
+Pas besoin de ça du coup le calculse fera tout seul :
+❌ sauvegarder les données dans un fichier json ou yaml
+    count :
+        drop : 0
+        glass : 0
+        bottle : 0
+        bucket : 0
+        bath : 0
+✅ charger le fichier
+❌ changer l'icone à chaque montée en gamme : pas sur que ce soit une bonne idée
+    water-outline
+    cup-outline
+    bottle-soda-classic-outline
+    barrel
+✅ ajouter les cercle des autres icones et les rendre fonctionels
+✅ entre la liste et le bouton add, ajouter un visuel avec les icones et le total sous chacune d'elle
+goutte  verre   bouteille
+8       1       1
+✅ modifier le style d'un bouton
+✅ au clic en dehors du boutton annuler la saisie
+✅ décomposition en pages et composants
+✅ couleurs extraites
+✅ ajouter slider changement de page en bas
+
+- plusieurs fichiers css à retravailler
+- changer le systeme de suppression avec une suppression de groupe moins risquée
+- pouvoir chosir la date du pleurs
+- ajouter intensité du pleurs : petit moyen gros (symbolisés par des icones ? ou un slider?)
+- ajouter un visuel calendrier
+- ajouter une petite page d'infos sur les larmes
+
+- font titre
+- icone lancement app
+
+Le scroll ne focntionne plus
+Le visuel du menu n'est pas fini
+
+
