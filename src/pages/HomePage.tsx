@@ -1,7 +1,13 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
-  SafeAreaView, View, Text, TextInput, FlatList,
-  StyleSheet,TouchableOpacity, Keyboard, TouchableWithoutFeedback,
+  View,
+  Text,
+  TextInput,
+  FlatList,
+  TouchableOpacity,
+  Keyboard,
+  TouchableWithoutFeedback,
+  SafeAreaView,
 } from 'react-native';
 import Svg, { Circle } from 'react-native-svg';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
@@ -9,211 +15,239 @@ import * as Font from 'expo-font';
 import * as FileSystem from 'expo-file-system';
 import styles from './../styles/styles';
 import appStyles from './../styles/appStyles';
+import { colors } from '../styles/colors';
+
+const FILE_PATH = FileSystem.documentDirectory + 'cries.json';
+
+function formatDate(date: Date): string {
+  const pad = (n: number) => String(n).padStart(2, '0');
+  return `${pad(date.getDate())}/${pad(date.getMonth() + 1)}/${date.getFullYear()} ${pad(date.getHours())}:${pad(date.getMinutes())}`;
+}
+
+function calculateProgress(cryCount: number) {
+  return {
+    circle1Progress: (cryCount % 10) * 10,
+    circle2Progress: (Math.floor(cryCount / 10) % 5) * 20,
+    circle3Progress: (Math.floor(cryCount / 50) % 5) * 20,
+  };
+}
 
 export default function HomePage() {
   const [fontsLoaded, setFontsLoaded] = useState(false);
-  const [cries, setCries] = useState([]);
+  const [cries, setCries] = useState<any[]>([]);
   const [note, setNote] = useState('');
   const [isAdding, setIsAdding] = useState(false);
 
-  const filePath = FileSystem.documentDirectory + 'cries.json';
-
   useEffect(() => {
-    const loadFonts = async () => {
+    const init = async () => {
       await Font.loadAsync({
         GlassWater: require('../../assets/fonts/Glasswater.otf'),
         Psycho: require('../../assets/fonts/Psycho.otf'),
       });
       setFontsLoaded(true);
-    };
 
-    const loadCries = async () => {
       try {
-        const fileExists = await FileSystem.getInfoAsync(filePath);
-        if (fileExists.exists) {
-          const fileContent = await FileSystem.readAsStringAsync(filePath);
-          setCries(JSON.parse(fileContent));
+        const info = await FileSystem.getInfoAsync(FILE_PATH);
+        if (info.exists) {
+          const content = await FileSystem.readAsStringAsync(FILE_PATH);
+          setCries(JSON.parse(content));
         }
-      } catch (error) {
-        console.error('Error reading file:', error);
+      } catch (e) {
+        console.error('Error loading cries:', e);
       }
     };
-
-    loadFonts();
-    loadCries();
+    init();
   }, []);
 
-  const saveCriesToFile = async (data: any) => {
+  const saveCries = useCallback(async (data: any[]) => {
     try {
-      await FileSystem.writeAsStringAsync(filePath, JSON.stringify(data));
-      console.log('File saved successfully!');
-    } catch (error) {
-      console.error('Error saving file:', error);
+      await FileSystem.writeAsStringAsync(FILE_PATH, JSON.stringify(data));
+    } catch (e) {
+      console.error('Error saving cries:', e);
     }
-  };
+  }, []);
 
-  const formatDate = (date: Date) => {
-    const day = String(date.getDate()).padStart(2, '0');
-    const month = String(date.getMonth() + 1).padStart(2, '0');
-    const year = date.getFullYear();
-    const hours = String(date.getHours()).padStart(2, '0');
-    const minutes = String(date.getMinutes()).padStart(2, '0');
-    return `${day}/${month}/${year} ${hours}:${minutes}`;
-  };
-
-  const addCry = () => {
+  const addCry = useCallback(() => {
     const newCry = {
       id: Date.now().toString(),
       date: formatDate(new Date()),
       note: note.trim(),
     };
-    const updatedCries: any = [newCry, ...cries];
-    setCries(updatedCries);
-    saveCriesToFile(updatedCries);
+    const updated = [newCry, ...cries];
+    setCries(updated);
+    saveCries(updated);
     setNote('');
     setIsAdding(false);
-  };
+    Keyboard.dismiss();
+  }, [cries, note, saveCries]);
 
-  const deleteCry = (id: string) => {
-    const updatedCries = cries.filter((cry: any) => cry.id !== id);
-    setCries(updatedCries);
-    saveCriesToFile(updatedCries);
-  };
+  const deleteCry = useCallback((id: string) => {
+    const updated = cries.filter((c) => c.id !== id);
+    setCries(updated);
+    saveCries(updated);
+  }, [cries, saveCries]);
 
-  const calculateProgress = (cryCount: number) => {
-    // Cercle 1 : 10% par cry, réinitialisé tous les 10 cries
-    const circle1Progress = ((cryCount % 10) * 10);
-    // Cercle 2 : 20% par 10 cries, réinitialisé tous les 50 cries
-    const circle2Progress = ((Math.floor(cryCount / 10) % 5) * 20);
-    // Cercle 3 : 20% par 50 cries, réinitialisé tous les 250 cries
-    const circle3Progress = ((Math.floor(cryCount / 50) % 5) * 20);
-    return { circle1Progress, circle2Progress, circle3Progress };
-  };
-  
-  
-  const { circle1Progress, circle2Progress, circle3Progress } = calculateProgress(cries.length);
-  const progress = Math.min((cries.length / 100) * 100, 100);
-  const cxy = 50;
-  const innerCircle = 35;
-  const midCircle = 45;
-  const outerCircle = 55;
-  const stroke = 8;
-  const progressCalculInner = 2 * Math.PI * innerCircle;
-  const progressCalculMid = 2 * Math.PI * midCircle;
-  const progressCalculOuter = 2 * Math.PI * outerCircle;
+  const cancel = useCallback(() => {
+    Keyboard.dismiss();
+    setNote('');
+    setIsAdding(false);
+  }, []);
 
   if (!fontsLoaded) {
     return (
       <SafeAreaView style={appStyles.loadingContainer}>
-        <Text style={appStyles.loadingText}>Loading...</Text>
+        <Text style={appStyles.loadingText}>Chargement…</Text>
       </SafeAreaView>
     );
   }
 
+  const { circle1Progress, circle2Progress, circle3Progress } = calculateProgress(cries.length);
+  const cxy = 50;
+  const r1 = 32, r2 = 42, r3 = 52;
+  const stroke = 7;
+  const circ = (r: number) => 2 * Math.PI * r;
+
+  const drops = cries.length % 10;
+  const glasses = Math.floor(cries.length / 10) % 5;
+  const bottles = Math.floor(cries.length / 50) % 5;
+
   return (
-    <TouchableWithoutFeedback 
-      onPress={() => {
-        Keyboard.dismiss();
-        setNote('');
-        setIsAdding(false);
-      }}
-    >
+    <TouchableWithoutFeedback onPress={cancel}>
       <SafeAreaView style={appStyles.safeArea}>
         <View style={appStyles.container}>
+
+          {/* Header */}
           <Text style={appStyles.title}>CryCount</Text>
+          <Text style={styles.subtitle}>
+            {cries.length === 0
+              ? 'Aucune larme enregistrée'
+              : `${cries.length} pleur${cries.length > 1 ? 's' : ''} enregistré${cries.length > 1 ? 's' : ''}`}
+          </Text>
 
-          <Text style={styles.cryText}>You cried <Text style={styles.crycountText}>56</Text> times this year</Text>
-
+          {/* Circular progress */}
           <View style={styles.circularProgress}>
             <MaterialCommunityIcons
               name="water-outline"
-              size={80}
-              color="#6a5acd"
+              size={72}
+              color={colors.primary}
               style={styles.bottleIcon}
             />
-            <Text style={styles.percentageText}>{Math.round(progress)}</Text>
-            <Svg width={300} height={300} viewBox="-15 0 130 100">
-              {/* Cercle externe */}
-              <Circle cx={cxy} cy={cxy} r={outerCircle} stroke="#e8e8e8" strokeWidth={stroke} fill="none" />
+            <Text style={styles.percentageText}>{drops}</Text>
+
+            <Svg width={280} height={280} viewBox="-18 -2 136 116">
+              {/* Outer track + fill */}
+              <Circle cx={cxy} cy={cxy} r={r3} stroke={colors.circleTrack} strokeWidth={stroke} fill="none" />
               <Circle
-                cx={cxy}
-                cy={cxy}
-                r={outerCircle}
-                stroke="#c49ccf"
-                strokeWidth={stroke}
-                fill="none"
-                strokeDasharray={progressCalculOuter}
-                strokeDashoffset={progressCalculOuter - (circle3Progress / 100) * progressCalculOuter}
+                cx={cxy} cy={cxy} r={r3}
+                stroke={colors.circleOuter} strokeWidth={stroke} fill="none"
+                strokeDasharray={circ(r3)}
+                strokeDashoffset={circ(r3) - (circle3Progress / 100) * circ(r3)}
                 strokeLinecap="round"
+                rotation="-90" origin={`${cxy},${cxy}`}
               />
-              {/* Cercle intermédiaire */}
-              <Circle cx={cxy} cy={cxy} r={midCircle} stroke="#e8e8e8" strokeWidth={stroke} fill="none" />
+              {/* Mid track + fill */}
+              <Circle cx={cxy} cy={cxy} r={r2} stroke={colors.circleTrack} strokeWidth={stroke} fill="none" />
               <Circle
-                cx={cxy}
-                cy={cxy}
-                r={midCircle}
-                stroke="#9370db"
-                strokeWidth={stroke}
-                fill="none"
-                strokeDasharray={progressCalculMid}
-                strokeDashoffset={progressCalculMid - (circle2Progress / 100) * progressCalculMid}
+                cx={cxy} cy={cxy} r={r2}
+                stroke={colors.circleMid} strokeWidth={stroke} fill="none"
+                strokeDasharray={circ(r2)}
+                strokeDashoffset={circ(r2) - (circle2Progress / 100) * circ(r2)}
                 strokeLinecap="round"
+                rotation="-90" origin={`${cxy},${cxy}`}
               />
-              {/* Cercle central */}
-              <Circle cx={cxy} cy={cxy} r={innerCircle} stroke="#e8e8e8" strokeWidth={stroke} fill="none" />
+              {/* Inner track + fill */}
+              <Circle cx={cxy} cy={cxy} r={r1} stroke={colors.circleTrack} strokeWidth={stroke} fill="none" />
               <Circle
-                cx={cxy}
-                cy={cxy}
-                r={innerCircle}
-                stroke="#6a5acd"
-                strokeWidth={stroke}
-                fill="none"
-                strokeDasharray={progressCalculInner}
-                strokeDashoffset={progressCalculInner - (circle1Progress / 100) * progressCalculInner}
+                cx={cxy} cy={cxy} r={r1}
+                stroke={colors.circleInner} strokeWidth={stroke} fill="none"
+                strokeDasharray={circ(r1)}
+                strokeDashoffset={circ(r1) - (circle1Progress / 100) * circ(r1)}
                 strokeLinecap="round"
+                rotation="-90" origin={`${cxy},${cxy}`}
               />
             </Svg>
           </View>
 
+          {/* Counter chips */}
+          <View style={styles.counter}>
+            {[
+              { icon: 'water-outline', count: drops, label: 'larmes' },
+              { icon: 'cup-outline', count: glasses, label: 'verres' },
+              { icon: 'bottle-soda-classic-outline', count: bottles, label: 'bouteilles' },
+            ].map(({ icon, count, label }) => (
+              <View key={label} style={styles.counterBloc}>
+                <MaterialCommunityIcons name={icon as any} size={28} color={colors.primary} />
+                <Text style={styles.counterText}>{count}</Text>
+                <Text style={styles.counterLabel}>{label}</Text>
+              </View>
+            ))}
+          </View>
+
+          {/* Add cry area */}
           {isAdding ? (
-            <View>
-              <TouchableOpacity style={styles.addCryButton} onPress={addCry}>
-                <Text style={styles.addCryText}>Save Cry</Text>
-              </TouchableOpacity>
+            <View style={styles.inputWrapper}>
               <TextInput
                 style={styles.input}
-                placeholder="Add a note (optional)"
+                placeholder="Ajouter une note (optionnel)…"
+                placeholderTextColor={colors.textMuted}
                 value={note}
                 onChangeText={setNote}
-                onSubmitEditing={() => {
-                  addCry();
-                }}
+                onSubmitEditing={addCry}
+                autoFocus
+                returnKeyType="done"
               />
+              <View style={{ flexDirection: 'row', gap: 10, marginTop: 10 }}>
+                <TouchableOpacity
+                  style={[styles.addCryButton, { flex: 1 }]}
+                  onPress={addCry}
+                >
+                  <Text style={styles.addCryText}>💧 Enregistrer</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={[styles.addCryButton, { flex: 1, backgroundColor: colors.cardBgAlt, shadowOpacity: 0 }]}
+                  onPress={cancel}
+                >
+                  <Text style={[styles.addCryText, { color: colors.textSecondary }]}>Annuler</Text>
+                </TouchableOpacity>
+              </View>
             </View>
           ) : (
             <TouchableOpacity style={styles.addCryButton} onPress={() => setIsAdding(true)}>
-              <Text style={styles.addCryText}>Add Cry</Text>
+              <Text style={styles.addCryText}>+ Ajouter un pleur</Text>
             </TouchableOpacity>
           )}
 
+          {/* List */}
+          {cries.length > 0 && (
+            <Text style={[styles.sectionHeader, { alignSelf: 'flex-start', marginTop: 20 }]}>
+              Historique
+            </Text>
+          )}
           <FlatList
             style={styles.cryList}
+            contentContainerStyle={styles.cryListContent}
             data={cries}
-            keyExtractor={(item: any) => item.id}
+            keyExtractor={(item) => item.id}
+            showsVerticalScrollIndicator={false}
             renderItem={({ item }) => (
               <View style={styles.cryItem}>
-                <Text style={styles.cryDate}>{item.date}</Text>
+                <View style={styles.cryItemHeader}>
+                  <View style={styles.cryDot} />
+                  <Text style={styles.cryDate}>{item.date}</Text>
+                </View>
                 {item.note ? <Text style={styles.cryNote}>{item.note}</Text> : null}
                 <TouchableOpacity onPress={() => deleteCry(item.id)} style={styles.deleteButton}>
-                  <MaterialCommunityIcons
-                    name="delete"
-                    size={20}
-                    color="#ff6347"
-                  />
+                  <MaterialCommunityIcons name="trash-can-outline" size={16} color={colors.danger} />
                 </TouchableOpacity>
               </View>
             )}
-            ListEmptyComponent={<Text style={styles.emptyText}>No cries recorded yet.</Text>}
+            ListEmptyComponent={
+              <View style={styles.emptyState}>
+                <MaterialCommunityIcons name="emoticon-sad-outline" size={48} color={colors.textMuted} />
+                <Text style={styles.emptyText}>Aucun pleur enregistré.</Text>
+                <Text style={styles.emptySubText}>Appuie sur le bouton pour commencer.</Text>
+              </View>
+            }
           />
         </View>
       </SafeAreaView>
